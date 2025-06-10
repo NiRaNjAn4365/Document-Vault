@@ -8,6 +8,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -16,11 +17,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -45,7 +48,7 @@ fun PhotoView(folderId:Int,navController: NavController) {
 
     val repo = ImageRepository(db.imagesDao())
     val factory = PhotoViewModelFactory(repo)
-
+    val selectedImages = remember { mutableStateListOf<Int>() }
     val photoModel: PhotosViewModel = viewModel(factory = factory)
     var selectedImageUris=photoModel.images
 
@@ -127,17 +130,42 @@ fun PhotoView(folderId:Int,navController: NavController) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(selectedImageUris.value) { uri ->
+                val isSelected=uri.id in selectedImages
                     AsyncImage(
-                        model = uri,
+                        model = uri.imageUri,
                         contentDescription = "Selected Image",
                         modifier = Modifier
                             .aspectRatio(1f)
                             .background(MaterialTheme.colorScheme.surface)
-                            .clickable(onClick = {
-                                navController.navigate("details_screen/${Uri.encode(uri.toString())}")
-                            }),
+                            .pointerInput(Unit){
+                                detectTapGestures(
+                                    onTap = {
+                                        navController.navigate("details_screen/${Uri.encode(uri.toString())}")
+                                    },
+                                    onLongPress = {
+                                        if(isSelected){
+                                            selectedImages.remove(uri.id)
+                                        }else{
+                                            if (uri.id != null) {
+                                                selectedImages.add(uri.id)
+                                            }
+                                        }
+                                    }
+                                )
+                            },
                         contentScale = ContentScale.Crop
                     )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Selected",
+                            tint = Color.Green,
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(4.dp)
+                                .size(24.dp)
+                        )
+                    }
                 }
 
                 item {

@@ -1,18 +1,20 @@
 package com.example.documentvault.screens
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -20,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.documentvault.R
-import com.example.documentvault.Screens
 import com.example.documentvault.database.AppDatabase
 import com.example.documentvault.models.Folders
 import com.example.documentvault.repository.FolderRepository
@@ -32,10 +33,13 @@ fun HomeScreen(navController: NavController) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
     val repository = remember { FolderRepository(db.folderDao()) }
-
+    var isLongPressed by remember { mutableStateOf(false) }
+    var selectedFolder by remember { mutableStateOf<Folders?>(null) }
     val viewModel: FolderViewModel = viewModel(
         factory = FolderViewModelFactory(repository)
     )
+
+
 
     val folders by viewModel.folders.collectAsState()
     var dismiss by remember { mutableStateOf(false) }
@@ -66,9 +70,20 @@ fun HomeScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .shadow(4.dp, RoundedCornerShape(16.dp))
-                        .clickable {
-                            val folderId=folder.id
-                            navController.navigate("photo_screen/${folderId}")
+                        .pointerInput(
+                            Unit
+                        ){
+                            detectTapGestures(
+                                onTap = {
+                                   val folderId=folder.id
+                                    isLongPressed=false
+                                    navController.navigate("photo_screen/${folderId}")
+                                },
+                                onLongPress = {
+                                    selectedFolder = folder
+                                    isLongPressed=true
+                                }
+                            )
                         },
                     shape = RoundedCornerShape(16.dp),
                     elevation = CardDefaults.cardElevation(4.dp)
@@ -111,8 +126,37 @@ fun HomeScreen(navController: NavController) {
                 modifier = Modifier.size(30.dp)
             )
         }
+        if (isLongPressed) {
+            BottomAppBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomEnd),
+                actions = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                selectedFolder?.let {
+                                    viewModel.deleteFolders(it)
+                                    isLongPressed = false
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete"
+                            )
+                        }
+                    }
+                }
+            )
+        }
+        }
     }
-}
+
 @Composable
 fun AddFolderDialog(
     onDismiss: () -> Unit,

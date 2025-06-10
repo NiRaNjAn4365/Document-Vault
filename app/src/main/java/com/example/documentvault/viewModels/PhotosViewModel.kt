@@ -10,11 +10,11 @@ import kotlinx.coroutines.launch
 
 class PhotosViewModel(private val repo: ImageRepository) : ViewModel() {
 
-    private val _images = mutableStateOf<List<Uri>>(emptyList())
+    private val _images = mutableStateOf<List<Images>>(emptyList())
     val images = _images
 
     fun addImages(folderId: Int, uris: List<Uri>) {
-        _images.value = _images.value + uris
+        _images.value = (_images.value + uris) as List<Images>
         viewModelScope.launch {
             uris.forEach { uri ->
                 repo.insertImage(Images(folderId = folderId, imageUri = uri.toString()))
@@ -29,7 +29,8 @@ class PhotosViewModel(private val repo: ImageRepository) : ViewModel() {
     fun loadImages(folderId: Int) {
         viewModelScope.launch {
             repo.getImagesByFolder(folderId).collect { imageList ->
-                _images.value = imageList.map { Uri.parse(it.imageUri) }            }
+
+                _images.value = imageList.map { Images(folderId=it.folderId, id = it.id, imageUri = Uri.parse(it.imageUri).toString())   }            }
         }
     }
 
