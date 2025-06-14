@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +35,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.documentvault.R
 import com.example.documentvault.database.AppDatabase
+import com.example.documentvault.models.Images
 import com.example.documentvault.repository.ImageRepository
 import com.example.documentvault.viewModels.PhotoViewModelFactory
 import com.example.documentvault.viewModels.PhotosViewModel
@@ -48,10 +50,10 @@ fun PhotoView(folderId:Int,navController: NavController) {
 
     val repo = ImageRepository(db.imagesDao())
     val factory = PhotoViewModelFactory(repo)
-    val selectedImages = remember { mutableStateListOf<Int>() }
+    val selectedImages = remember { mutableStateListOf<Images>() }
     val photoModel: PhotosViewModel = viewModel(factory = factory)
     var selectedImageUris=photoModel.images
-
+    var isSelectedImage by remember { mutableStateOf(false) }
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {
@@ -130,7 +132,7 @@ fun PhotoView(folderId:Int,navController: NavController) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(selectedImageUris.value) { uri ->
-                val isSelected=uri.id in selectedImages
+                val isSelected=uri in selectedImages
                     AsyncImage(
                         model = uri.imageUri,
                         contentDescription = "Selected Image",
@@ -140,15 +142,19 @@ fun PhotoView(folderId:Int,navController: NavController) {
                             .pointerInput(Unit){
                                 detectTapGestures(
                                     onTap = {
-                                        navController.navigate("details_screen/${Uri.encode(uri.toString())}")
+                                        if(selectedImages.isEmpty()){
+                                            navController.navigate("details_screen/${Uri.encode(uri.toString())}")
+                                        }else{
+                                            selectedImages.add(uri)
+                                        }
+
                                     },
                                     onLongPress = {
                                         if(isSelected){
-                                            selectedImages.remove(uri.id)
+                                            selectedImages.remove(uri)
                                         }else{
-                                            if (uri.id != null) {
-                                                selectedImages.add(uri.id)
-                                            }
+                                            isSelectedImage=true
+                                                selectedImages.add(uri)
                                         }
                                     }
                                 )
@@ -164,6 +170,9 @@ fun PhotoView(folderId:Int,navController: NavController) {
                                 .align(Alignment.TopEnd)
                                 .padding(4.dp)
                                 .size(24.dp)
+                                .clickable{
+                                    selectedImages.remove(uri)
+                                }
                         )
                     }
                 }
@@ -185,7 +194,40 @@ fun PhotoView(folderId:Int,navController: NavController) {
                         )
                     }
                 }
+
             }
         }
+        if (isSelectedImage) {
+            BottomAppBar(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomEnd),
+                actions = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                selectedImages.let {
+                                    for(x in selectedImages){
+                                        photoModel.deleteImages(x)
+                                    }
+                                    isSelectedImage = false
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete"
+                            )
+                        }
+                    }
+                }
+            )
+        }
+
     }
+
 }

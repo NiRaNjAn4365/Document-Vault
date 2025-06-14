@@ -22,8 +22,10 @@ class PhotosViewModel(private val repo: ImageRepository) : ViewModel() {
         }
     }
 
-    fun clearImages() {
-        _images.value = emptyList()
+    fun deleteImages(images: Images) {
+        viewModelScope.launch {
+            repo.deleteImage(images)
+        }
     }
 
     fun loadImages(folderId: Int) {
