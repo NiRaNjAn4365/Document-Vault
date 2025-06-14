@@ -14,7 +14,7 @@ import com.example.documentvault.screens.SplashScreen
 
 @Composable
 fun Navigation(controller: NavHostController) {
-    NavHost(navController = controller, startDestination = Screens.HomeScreen.route) {
+    NavHost(navController = controller, startDestination = Screens.AuthScreen.route) {
         composable(route= Screens.SplashScreen.route) {
             SplashScreen(controller)
         }

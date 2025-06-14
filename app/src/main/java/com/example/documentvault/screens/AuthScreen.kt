@@ -1,7 +1,9 @@
 package com.example.documentvault.screens
 
-
+import android.content.Context
 import android.widget.Toast
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,11 +17,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -32,19 +34,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.navigation.NavController
+import com.example.documentvault.R
 import com.example.documentvault.Screens
+import java.util.concurrent.Executor
 
 @Composable
 fun AuthScreen(navController: NavController) {
     val visibleDarkBlue = Color(0x6515137E)
     var pinDigits by remember { mutableStateOf(List(4) { "" }) }
+    val context = LocalContext.current
+    val biometricManager = BiometricManager.from(context)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,22 +71,41 @@ fun AuthScreen(navController: NavController) {
                 color = Color.Black,
                 fontWeight = FontWeight.Bold
             )
-
             Spacer(modifier = Modifier.size(20.dp))
-
-            createDots(pinDigits = pinDigits)
+            CreateDots(pinDigits = pinDigits)
         }
 
-        createDigits(pinDigits,navController) { updatedDigits ->
+        CreateDigits(context,pinDigits, navController) { updatedDigits ->
             pinDigits = updatedDigits
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        IconButton(
+            onClick = {
+                if (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS) {
+                    showBiometricPrompt(context) {
+                        navController.navigate(Screens.HomeScreen.route) {
+                            popUpTo(Screens.AuthScreen.route) { inclusive = true }
+                        }
+                    }
+                } else {
+                    Toast.makeText(context, "Biometric not supported", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier
+                .size(100.dp)
+                .padding(bottom = 30.dp)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.fingerprintscan),
+                contentDescription = "fingerPrint",
+                modifier = Modifier.size(64.dp)
+            )
+        }
     }
 }
 
 @Composable
-fun createDots(pinDigits: List<String>) {
+fun CreateDots(pinDigits: List<String>) {
     Row(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
@@ -99,12 +127,12 @@ fun createDots(pinDigits: List<String>) {
 }
 
 @Composable
-fun createDigits(
+fun CreateDigits(
+    context: Context,
     pinDigits: List<String>,
     navController: NavController,
     onPinChange: (List<String>) -> Unit
 ) {
-    val context = LocalContext.current
     val numberList = (1..9).toList() + listOf(-1, 0, -2)
 
     LazyVerticalGrid(
@@ -168,14 +196,50 @@ fun createDigits(
                         .size(60.dp)
                 ) {
                     Text(text = number.toString())
-
                 }
             }
         }
     }
 }
-@Preview(showSystemUi = true)
-@Composable
-fun PreviewAuth(){
-    //AuthScreen()
+fun showBiometricPrompt(
+    context: Context,
+    onSuccess: () -> Unit
+) {
+    val executor: Executor = ContextCompat.getMainExecutor(context)
+    val activity = context as? FragmentActivity
+
+    if (activity == null) {
+        Toast.makeText(context, "Biometric not supported on this Activity type.", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    val biometricPrompt = BiometricPrompt(
+        activity,
+        executor,
+        object : BiometricPrompt.AuthenticationCallback() {
+            override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                super.onAuthenticationSucceeded(result)
+                Toast.makeText(context, "Success", Toast.LENGTH_SHORT).show()
+                onSuccess()
+            }
+
+            override fun onAuthenticationFailed() {
+                super.onAuthenticationFailed()
+                Toast.makeText(context, "Fingerprint Doesn't match", Toast.LENGTH_SHORT).show()
+            }
+
+            override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
+                super.onAuthenticationError(errorCode, errString)
+                Toast.makeText(context, "Option not available", Toast.LENGTH_SHORT).show()
+            }
+        }
+    )
+
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Biometric Authentication")
+        .setSubtitle("Use Fingerprint to access the app")
+        .setNegativeButtonText("Cancel")
+        .build()
+
+    biometricPrompt.authenticate(promptInfo)
 }
