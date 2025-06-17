@@ -1,6 +1,7 @@
 package com.example.documentvault.screens
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -207,7 +208,6 @@ fun showBiometricPrompt(
 ) {
     val executor: Executor = ContextCompat.getMainExecutor(context)
     val activity = context as? FragmentActivity
-
     if (activity == null) {
         Toast.makeText(context, "Biometric not supported on this Activity type.", Toast.LENGTH_SHORT).show()
         return

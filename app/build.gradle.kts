@@ -1,3 +1,5 @@
+import org.gradle.kotlin.dsl.implementation
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -42,10 +44,10 @@ android {
 }
 
 dependencies {
-    val room_version = "2.7.1"
+    val roomversion = "2.7.1"
 
-    implementation("androidx.room:room-runtime:$room_version")
-    kapt("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-runtime:$roomversion")
+    kapt("androidx.room:room-compiler:$roomversion")
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -54,7 +56,7 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation("io.coil-kt:coil-compose:2.5.0")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
-    implementation ("androidx.navigation:navigation-compose:2.8.9")
+    implementation ("androidx.navigation:navigation-compose:2.9.0")
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
@@ -67,5 +69,6 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
     implementation ("androidx.appcompat:appcompat:1.7.1")
-
+   // implementation ("com.google.accompanist:accompanist-zoomable:0.30.1")
+    //implementation ("com.google.accompanist:accompanist-gestures:0.30.1")
 }
