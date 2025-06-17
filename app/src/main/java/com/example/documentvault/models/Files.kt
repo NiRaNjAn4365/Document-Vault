@@ -10,9 +10,10 @@ import androidx.room.PrimaryKey
     childColumns = ["folderId"],
     onDelete = ForeignKey.CASCADE
 )])
-data class Images(
+data class Files(
 
     @PrimaryKey(autoGenerate = true) val id:Int?=null,
     val folderId: Int,
-    val imageUri: String
+    val fileUri: String,
+    val filePath: String
 )

@@ -4,16 +4,16 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.documentvault.dao.FilesDao
 import com.example.documentvault.dao.FoldersDao
-import com.example.documentvault.dao.ImageDao
+import com.example.documentvault.models.Files
 import com.example.documentvault.models.Folders
-import com.example.documentvault.models.Images
 import kotlin.jvm.java
 
-@Database(entities = [Folders::class,Images::class], version = 3)
+@Database(entities = [Folders::class, Files::class], version = 5)
 abstract class AppDatabase : RoomDatabase(){
     abstract fun folderDao() : FoldersDao
-    abstract fun imagesDao(): ImageDao
+    abstract fun filesDao(): FilesDao
 
     companion object{
         @Volatile private var INSTANCE: AppDatabase? = null

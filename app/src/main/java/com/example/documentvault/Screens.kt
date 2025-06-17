@@ -5,5 +5,5 @@ sealed class Screens(val route:String) {
     object AuthScreen: Screens("auth_screen")
     object HomeScreen: Screens("home_screen")
     object PhotoView: Screens("photo_screen")
-    object ImageDetail: Screens("details_screen")
+    object ImageDetail: Screens("image_details_screen")
 }

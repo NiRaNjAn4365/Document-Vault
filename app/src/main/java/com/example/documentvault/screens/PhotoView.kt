@@ -1,6 +1,10 @@
 package com.example.documentvault.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
@@ -35,12 +39,14 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.example.documentvault.R
 import com.example.documentvault.database.AppDatabase
-import com.example.documentvault.models.Images
-import com.example.documentvault.repository.ImageRepository
-import com.example.documentvault.viewModels.PhotoViewModelFactory
-import com.example.documentvault.viewModels.PhotosViewModel
+import com.example.documentvault.models.Files
+import com.example.documentvault.repository.FilesRepository
+import com.example.documentvault.viewModels.FilesViewModel
+import com.example.documentvault.viewModels.FilesViewModelFactory
 import com.google.accompanist.permissions.*
+import androidx.core.net.toUri
 
+@SuppressLint("SuspiciousIndentation")
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun PhotoView(folderId:Int,navController: NavController) {
@@ -48,11 +54,11 @@ fun PhotoView(folderId:Int,navController: NavController) {
     val context = LocalContext.current.applicationContext
     val db = AppDatabase.getDatabase(context)
 
-    val repo = ImageRepository(db.imagesDao())
-    val factory = PhotoViewModelFactory(repo)
-    val selectedImages = remember { mutableStateListOf<Images>() }
-    val photoModel: PhotosViewModel = viewModel(factory = factory)
-    var selectedImageUris=photoModel.images
+    val repo = FilesRepository(db.filesDao())
+    val factory = FilesViewModelFactory(repo)
+    val selectedImages = remember { mutableStateListOf<Files>() }
+    val photoModel: FilesViewModel = viewModel(factory = factory)
+    var selectedImageUris=photoModel.files
     var isSelectedImage by remember { mutableStateOf(false) }
     val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
@@ -61,11 +67,22 @@ fun PhotoView(folderId:Int,navController: NavController) {
     }
 
     val permissionState = rememberPermissionState(permission)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        uris.let {
+            it.forEach { uri ->
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
 
-    val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris: List<Uri> ->
-        photoModel.addImages(folderId = folderId, uris = uris)
+            val filesWithTypes = it.map { uri ->
+                val type = context.contentResolver.getType(uri) ?: "unknown"
+                Pair(uri, type)
+            }
+
+            photoModel.addImages(folderId, filesWithTypes)
+        }
     }
     LaunchedEffect(Unit) {
         photoModel.loadImages(folderId)
@@ -73,8 +90,7 @@ fun PhotoView(folderId:Int,navController: NavController) {
     fun handleBrowseClick() {
         when {
             permissionState.status.isGranted -> {
-                imagePickerLauncher.launch("image/*")
-            }
+                launcher.launch(arrayOf("image/*","application/pdf"))            }
             permissionState.status.shouldShowRationale -> {
                 Toast.makeText(context, "Gallery permission is needed.", Toast.LENGTH_LONG).show()
                 permissionState.launchPermissionRequest()
@@ -133,34 +149,67 @@ fun PhotoView(folderId:Int,navController: NavController) {
             ) {
                 items(selectedImageUris.value) { uri ->
                 val isSelected=uri in selectedImages
-                    AsyncImage(
-                        model = uri.imageUri,
-                        contentDescription = "Selected Image",
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .background(MaterialTheme.colorScheme.surface)
-                            .pointerInput(Unit){
-                                detectTapGestures(
-                                    onTap = {
-                                        if(selectedImages.isEmpty()){
-                                            navController.navigate("details_screen/${Uri.encode(uri.toString())}")
-                                        }else{
-                                            selectedImages.add(uri)
-                                        }
-
-                                    },
-                                    onLongPress = {
-                                        if(isSelected){
-                                            selectedImages.remove(uri)
-                                        }else{
-                                            isSelectedImage=true
+                    if(uri.filePath.contains("image", ignoreCase = true)) {
+                        AsyncImage(
+                            model = uri.fileUri,
+                            contentDescription = "Selected Image",
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            if (selectedImages.isEmpty()) {
+                                                navController.navigate(
+                                                    "image_details_screen/${
+                                                        Uri.encode(
+                                                            uri.fileUri
+                                                        )
+                                                    }"
+                                                )
+                                            } else {
                                                 selectedImages.add(uri)
+                                            }
+                                        },
+                                        onLongPress = {
+                                            if (isSelected) {
+                                                selectedImages.remove(uri)
+                                            } else {
+                                                isSelectedImage = true
+                                                selectedImages.add(uri)
+                                            }
                                         }
-                                    }
-                                )
-                            },
-                        contentScale = ContentScale.Crop
-                    )
+                                    )
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                    }else if(uri.filePath.contains("pdf", ignoreCase = true)) {
+                        Icon(
+                            painter = painterResource(R.drawable.pdf),
+                            contentDescription = "PDF",
+                            modifier = Modifier
+                                .size(80.dp)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            if (selectedImages.isEmpty()) {
+                                                openPdfInExternalApp(context, uri.fileUri.toUri())
+                                            } else {
+                                                selectedImages.add(uri)
+                                            }
+                                        },
+                                        onLongPress = {
+                                            if (isSelected) {
+                                                selectedImages.remove(uri)
+                                            } else {
+                                                isSelectedImage = true
+                                                selectedImages.add(uri)
+                                            }
+                                        }
+                                    )
+                                }
+                        )
+                    }
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
@@ -197,7 +246,7 @@ fun PhotoView(folderId:Int,navController: NavController) {
 
             }
         }
-        if (isSelectedImage) {
+        if (isSelectedImage && selectedImages.isNotEmpty()) {
             BottomAppBar(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -230,4 +279,23 @@ fun PhotoView(folderId:Int,navController: NavController) {
 
     }
 
+}
+
+fun openPdfInExternalApp(context: Context, pdfUri: Uri) {
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(pdfUri, "application/pdf")
+        flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_ACTIVITY_NO_HISTORY or
+                Intent.FLAG_ACTIVITY_NEW_TASK
+    }
+
+    val chooser = Intent.createChooser(intent, "Open PDF with").apply {
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    try {
+        context.startActivity(chooser)
+    } catch (e: ActivityNotFoundException) {
+        Toast.makeText(context, "No app found to open PDF$e", Toast.LENGTH_SHORT).show()
+    }
 }
