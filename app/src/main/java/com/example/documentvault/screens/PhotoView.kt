@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -74,6 +76,8 @@ fun PhotoView(folderId:Int,navController: NavController) {
                     uri,
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
                 )
+
+
             }
 
             val filesWithTypes = it.map { uri ->
@@ -81,7 +85,7 @@ fun PhotoView(folderId:Int,navController: NavController) {
                 Pair(uri, type)
             }
 
-            photoModel.addImages(folderId, filesWithTypes)
+            photoModel.addImages(folderId, filesWithTypes,context)
         }
     }
     LaunchedEffect(Unit) {
@@ -184,31 +188,39 @@ fun PhotoView(folderId:Int,navController: NavController) {
                             contentScale = ContentScale.Crop
                         )
                     }else if(uri.filePath.contains("pdf", ignoreCase = true)) {
-                        Icon(
-                            painter = painterResource(R.drawable.pdf),
-                            contentDescription = "PDF",
-                            modifier = Modifier
-                                .size(80.dp)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onTap = {
-                                            if (selectedImages.isEmpty()) {
-                                                openPdfInExternalApp(context, uri.fileUri.toUri())
-                                            } else {
-                                                selectedImages.add(uri)
-                                            }
-                                        },
-                                        onLongPress = {
-                                            if (isSelected) {
-                                                selectedImages.remove(uri)
-                                            } else {
-                                                isSelectedImage = true
-                                                selectedImages.add(uri)
-                                            }
-                                        }
-                                    )
-                                }
-                        )
+                        val t=uri.fileName.substring(0,15)
+                      Column() {
+                          Icon(
+                              painter = painterResource(R.drawable.pdf),
+                              contentDescription = "PDF",
+                              modifier = Modifier
+                                  .size(80.dp)
+                                  .pointerInput(Unit) {
+                                      detectTapGestures(
+                                          onTap = {
+                                              if (selectedImages.isEmpty()) {
+                                                  openPdfInExternalApp(context, uri.fileUri.toUri())
+                                              } else {
+                                                  selectedImages.add(uri)
+                                              }
+                                          },
+                                          onLongPress = {
+                                              if (isSelected) {
+                                                  selectedImages.remove(uri)
+                                              } else {
+                                                  isSelectedImage = true
+                                                  selectedImages.add(uri)
+                                              }
+                                          }
+                                      )
+                                  }
+                          )
+                          Text(
+                              text = t+"...",
+                              fontSize = 12.sp,
+                              modifier = Modifier.padding(top = 4.dp)
+                          )
+                      }
                     }
                     if (isSelected) {
                         Icon(
@@ -298,4 +310,19 @@ fun openPdfInExternalApp(context: Context, pdfUri: Uri) {
     } catch (e: ActivityNotFoundException) {
         Toast.makeText(context, "No app found to open PDF$e", Toast.LENGTH_SHORT).show()
     }
+}
+
+fun getFileNameFromUri(context: Context, uri: Uri): String? {
+    val cursor = context.contentResolver.query(uri, null, null, null, null)
+    var name: String? = null
+
+    cursor?.use {
+        if (it.moveToFirst()) {
+            val nameIndex = it.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (nameIndex != -1) {
+                name = it.getString(nameIndex)
+            }
+        }
+    }
+    return name
 }

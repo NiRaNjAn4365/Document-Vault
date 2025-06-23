@@ -10,7 +10,7 @@ import com.example.documentvault.models.Files
 import com.example.documentvault.models.Folders
 import kotlin.jvm.java
 
-@Database(entities = [Folders::class, Files::class], version = 5)
+@Database(entities = [Folders::class, Files::class], version = 6)
 abstract class AppDatabase : RoomDatabase(){
     abstract fun folderDao() : FoldersDao
     abstract fun filesDao(): FilesDao

@@ -15,5 +15,6 @@ data class Files(
     @PrimaryKey(autoGenerate = true) val id:Int?=null,
     val folderId: Int,
     val fileUri: String,
-    val filePath: String
+    val filePath: String,
+    val fileName:String
 )
